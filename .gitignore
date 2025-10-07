@@ -1,0 +1,23 @@
+# Build artifacts
+/target
+/Cargo.lock
+
+# Environment files
+.env
+.env.development
+.env.production
+*.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Test coverage
+/coverage
+/tarpaulin-report.html

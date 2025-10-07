@@ -1,0 +1,77 @@
+[package]
+name = "ai-gateway"
+version = "0.1.0"
+edition = "2021"
+authors = ["LLM Hub Team"]
+description = "High-performance unified LLM API gateway for the LLM Hub platform"
+license = "MIT"
+
+[dependencies]
+# Web Framework
+axum = { version = "0.7", features = ["multipart", "ws", "macros"] }
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = ["cors", "trace", "request-id", "fs"] }
+
+# Async Runtime
+tokio = { version = "1.40", features = ["full"] }
+futures = "0.3"
+tokio-stream = "0.1"
+
+# Database - MongoDB
+mongodb = "3.0"
+bson = { version = "2.11", features = ["chrono-0_4"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# OpenAPI Documentation
+utoipa = { version = "4.0", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "7.0", features = ["axum"] }
+
+# Security & Encryption
+bcrypt = "0.15"
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
+base64 = "0.22"
+aes-gcm = "0.10"
+rand = "0.8"
+
+# HTTP Client
+reqwest = { version = "0.12", features = ["json", "multipart", "stream"] }
+
+# Configuration
+config = "0.14"
+dotenv = "0.15"
+
+# Error Handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging & Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Date/Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Utilities
+uuid = { version = "1.10", features = ["v4", "serde"] }
+async-trait = "0.1"
+regex = "1.10"
+validator = { version = "0.18", features = ["derive"] }
+
+# Testing
+tempfile = "3.10"
+
+[dev-dependencies]
+tempfile = "3.10"
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

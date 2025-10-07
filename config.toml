@@ -1,0 +1,22 @@
+# AI Gateway Configuration (Development)
+
+[server]
+host = "0.0.0.0"
+port = 3001
+environment = "development"
+
+[database]
+[database.mongodb]
+url = "mongodb://localhost:27017"
+database = "llm_hub_dev"
+
+[security]
+# Generate with: EncryptionService::generate_key()
+# This is a sample key - REPLACE in production!
+encryption_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+[providers]
+# Optional: Default provider API keys (can also be configured per-project)
+# openai_api_key = "sk-..."
+# anthropic_api_key = "sk-ant-..."
+# google_api_key = "..."
