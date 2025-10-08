@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use super::shared_types::LlmProvider;
+
 /// Transcription request entity
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionRequest {
@@ -81,8 +83,9 @@ pub struct TranscriptionHistory {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<bson::oid::ObjectId>,
     pub transcription_id: String,
-    pub project_id: String,
-    pub provider: crate::domain::entities::llm_api_key::LlmProvider,
+    #[serde(with = "crate::shared::utils::string_or_objectid")]
+    pub project_id: String,  // Deserializes ObjectId from MongoDB to String
+    pub provider: LlmProvider,
     pub file_hash: String,
     pub file_name: String,
     pub file_size_bytes: usize,
@@ -99,7 +102,7 @@ pub struct TranscriptionHistory {
 impl TranscriptionHistory {
     pub fn new(
         project_id: String,
-        provider: crate::domain::entities::llm_api_key::LlmProvider,
+        provider: LlmProvider,
         file_hash: String,
         file_name: String,
         file_size_bytes: usize,

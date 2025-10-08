@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 
-use crate::domain::entities::llm_api_key::LlmProvider;
+use crate::domain::entities::LlmProvider;
 use crate::domain::entities::transcription::{
     TranscriptionHistory, TranscriptionRequest, TranscriptionResponse,
 };

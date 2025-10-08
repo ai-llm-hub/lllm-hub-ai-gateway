@@ -79,18 +79,26 @@ async fn main() -> anyhow::Result<()> {
         "🔧 Loaded configuration for environment: {}",
         config.server.environment
     );
-    info!(
-        "📦 MongoDB: {}",
-        config.database.mongodb.url
-    );
 
     // Validate configuration
     config.validate().map_err(|e| anyhow::anyhow!("Configuration validation failed: {}", e))?;
 
     // Initialize database connection with retries
     info!("🔄 Initializing database connection...");
+    let mongodb_connection_string = config.get_mongodb_connection_string();
+    info!(
+        "📦 MongoDB: {}:{}@{}:{}/{}",
+        config.database.mongodb.username,
+        "***", // Hide password in logs
+        config.database.mongodb.url,
+        config.database.mongodb.port,
+        config.database.mongodb.database
+    );
+
+    info!("Connecting to MongoDB...{}", mongodb_connection_string);
+
     let db = match connect_mongodb(
-        &config.database.mongodb.url,
+        &mongodb_connection_string,
         &config.database.mongodb.database,
     )
     .await {
@@ -101,8 +109,9 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => {
             tracing::error!("❌ Failed to connect to database: {}", e);
             tracing::error!(
-                "Please ensure MongoDB is running and accessible at {}",
-                config.database.mongodb.url
+                "Please ensure MongoDB is running and accessible at {}:{}",
+                config.database.mongodb.url,
+                config.database.mongodb.port
             );
             std::process::exit(1);
         }

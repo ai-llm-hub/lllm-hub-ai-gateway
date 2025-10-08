@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
-use crate::domain::entities::llm_api_key::{LlmApiKey, LlmProvider};
+use crate::domain::entities::llm_api_key::LlmApiKey;
+use crate::domain::entities::LlmProvider;
 use crate::shared::error::AppError;
 
 /// Repository trait for LLM API key data access

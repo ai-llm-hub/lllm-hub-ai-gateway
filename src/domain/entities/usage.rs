@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::domain::entities::llm_api_key::LlmProvider;
+use super::shared_types::LlmProvider;
 
 /// Usage log entity for tracking API usage and costs
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,7 +9,8 @@ pub struct UsageLog {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<bson::oid::ObjectId>,
     pub usage_id: String,
-    pub project_id: String,
+    #[serde(with = "crate::shared::utils::string_or_objectid")]
+    pub project_id: String,  // Deserializes ObjectId from MongoDB to String
     pub api_endpoint: ApiEndpoint,
     pub provider: LlmProvider,
     pub model: String,

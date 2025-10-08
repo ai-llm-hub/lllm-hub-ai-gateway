@@ -67,13 +67,15 @@ impl ProjectRepository for MongoProjectRepository {
             tracing::error!("Failed to iterate through API key cursor: {}", e);
             AppError::InternalError(format!("Database cursor error: {}", e))
         })? {
+            info!("Evaluating candidate API key from database");
             keys_checked += 1;
-            info!("Checking key ID: {} (attempt #{})", key_doc.key_id, keys_checked);
+            let key_id_str = key_doc.id.as_ref().map(|id| id.to_hex()).unwrap_or_else(|| "unknown".to_string());
+            info!("Checking key ID: {} (attempt #{})", key_id_str, keys_checked);
 
             // Check if key has expired
             if let Some(expires_at) = key_doc.expires_at {
                 if chrono::Utc::now() > expires_at {
-                    info!("Key {} has expired, skipping", key_doc.key_id);
+                    info!("Key {} has expired, skipping", key_id_str);
                     continue; // Skip expired keys
                 }
             }
@@ -94,7 +96,7 @@ impl ProjectRepository for MongoProjectRepository {
                         {
                             tracing::warn!(
                                 "Failed to update last_used_at for key {}: {}",
-                                key_doc.key_id,
+                                key_id_str,
                                 e
                             );
                             // Don't fail the request, just log the warning
@@ -109,7 +111,7 @@ impl ProjectRepository for MongoProjectRepository {
                 Err(e) => {
                     tracing::error!(
                         "Failed to decrypt API key {} (hash length: {}): {}",
-                        key_doc.key_id,
+                        key_id_str,
                         key_doc.key_hash.len(),
                         e
                     );

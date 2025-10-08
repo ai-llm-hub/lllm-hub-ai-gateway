@@ -1,28 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// LLM provider enum
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "snake_case")]
-pub enum LlmProvider {
-    OpenAI,
-    Anthropic,
-    Google,
-    Azure,
-    AwsBedrock,
-}
-
-impl std::fmt::Display for LlmProvider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LlmProvider::OpenAI => write!(f, "openai"),
-            LlmProvider::Anthropic => write!(f, "anthropic"),
-            LlmProvider::Google => write!(f, "google"),
-            LlmProvider::Azure => write!(f, "azure"),
-            LlmProvider::AwsBedrock => write!(f, "aws_bedrock"),
-        }
-    }
-}
+use super::shared_types::LlmProvider;
 
 /// LLM API key entity for encrypted provider keys
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,7 +9,8 @@ pub struct LlmApiKey {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<bson::oid::ObjectId>,
     pub key_id: String,
-    pub project_id: String,
+    #[serde(with = "crate::shared::utils::string_or_objectid")]
+    pub project_id: String,  // Deserializes ObjectId from MongoDB to String
     pub provider: LlmProvider,
     pub name: String,
     pub encrypted_key: String,
@@ -84,13 +64,14 @@ pub struct ProjectApiKey {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<bson::oid::ObjectId>,
     pub key_id: String,
-    pub project_id: String,
+    #[serde(with = "crate::shared::utils::string_or_objectid")]
+    pub project_id: String,  // Deserializes ObjectId from MongoDB to String
     pub name: String,
-    pub key_hash: String,  // bcrypt hash of the actual key
-    pub key_prefix: String, // First 7 chars for identification
+    pub key_hash: String,  // AES-256-GCM encrypted key
+    pub key_prefix: String, // First 9 chars for identification (pk_xxxxxx)
     pub key_suffix: String, // Last 4 chars for identification
     pub is_active: bool,
-    pub created_by: String,
+    pub created_by: DateTime<Utc>,  // Serialized as RFC3339 format (ISO 8601)
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
@@ -104,8 +85,8 @@ impl ProjectApiKey {
         key_hash: String,
         key_prefix: String,
         key_suffix: String,
-        created_by: String,
     ) -> Self {
+        let now = Utc::now();
         Self {
             id: None,
             key_id: format!("pak_{}", uuid::Uuid::new_v4()),
@@ -115,9 +96,9 @@ impl ProjectApiKey {
             key_prefix,
             key_suffix,
             is_active: true,
-            created_by,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+            created_by: now,
+            created_at: now,
+            updated_at: now,
             last_used_at: None,
             expires_at: None,
         }
