@@ -108,13 +108,7 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    // Initialize repositories
-    let project_repo = Arc::new(MongoProjectRepository::new(db.clone()));
-    let llm_key_repo = Arc::new(MongoLlmApiKeyRepository::new(db.clone()));
-    let transcription_repo = Arc::new(MongoTranscriptionRepository::new(db.clone()));
-    let usage_repo = Arc::new(MongoUsageRepository::new(db.clone()));
-
-    // Initialize encryption service
+    // Initialize encryption service (needed by repositories)
     let encryption = match EncryptionService::new(&config.security.encryption_key) {
         Ok(service) => {
             info!("✅ Encryption service initialized");
@@ -125,6 +119,12 @@ async fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
+
+    // Initialize repositories
+    let project_repo = Arc::new(MongoProjectRepository::new(db.clone(), encryption.clone()));
+    let llm_key_repo = Arc::new(MongoLlmApiKeyRepository::new(db.clone()));
+    let transcription_repo = Arc::new(MongoTranscriptionRepository::new(db.clone()));
+    let usage_repo = Arc::new(MongoUsageRepository::new(db.clone()));
 
     // Initialize services
     let llm_key_service = Arc::new(LlmApiKeyService::new(

@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 use crate::shared::error::AppError;
 
 /// AES-256-GCM Encryption service
+#[derive(Clone)]
 pub struct EncryptionService {
     cipher: Aes256Gcm,
 }

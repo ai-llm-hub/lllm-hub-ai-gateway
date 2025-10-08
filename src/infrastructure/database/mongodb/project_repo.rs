@@ -1,101 +1,232 @@
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use mongodb::{bson::doc, Database};
+use mongodb::{bson::doc, Collection, Database};
 
 use crate::domain::entities::llm_api_key::ProjectApiKey;
-use crate::domain::entities::project::{Project, ProjectStatus};
+use crate::domain::entities::project::Project;
 use crate::domain::repositories::project_repository::ProjectRepository;
 use crate::shared::error::AppError;
-use crate::shared::utils::HashService;
+use crate::shared::utils::EncryptionService;
+use tracing::info;
 
 pub struct MongoProjectRepository {
-    db: Database,
+    encryption: EncryptionService,
+    projects: Collection<Project>,
+    project_api_keys: Collection<ProjectApiKey>,
 }
 
 impl MongoProjectRepository {
-    pub fn new(db: Database) -> Self {
-        Self { db }
+    pub fn new(db: Database, encryption: EncryptionService) -> Self {
+        Self {
+            projects: db.collection::<Project>("projects"),
+            project_api_keys: db.collection::<ProjectApiKey>("project_api_keys"),
+            encryption,
+        }
     }
 }
 
 #[async_trait]
 impl ProjectRepository for MongoProjectRepository {
     async fn find_by_api_key(&self, api_key: &str) -> Result<Project, AppError> {
-        let api_keys_collection = self.db.collection::<ProjectApiKey>("project_api_keys");
 
-        // Find matching API key with bcrypt verification
-        let mut cursor = api_keys_collection
-            .find(doc! { "is_active": true })
-            .await?;
+        info!("Looking up API key in database");
 
-        while let Ok(Some(key_doc)) = cursor.try_next().await {
-            if HashService::verify_api_key(api_key, &key_doc.key_hash).unwrap_or(false) {
-                // Mark as used
-                api_keys_collection
-                    .update_one(
-                        doc! { "_id": &key_doc.id },
-                        doc! { "$set": { "last_used_at": chrono::Utc::now() } },
-                    )
-                    .await?;
+        // Extract key prefix for optimization (first 9 characters: "pk_" + 6 chars)
+        let key_prefix = if api_key.len() >= 9 {
+            &api_key[0..9]
+        } else {
+            api_key
+        };
 
-                // Find associated project
-                return self.find_by_id(&key_doc.project_id).await;
+        info!("Using key prefix: {}", key_prefix);
+
+        // Find matching API key with AES-256-GCM decryption
+        // Query by prefix to reduce number of keys to decrypt
+        let mut cursor = self.project_api_keys
+            .find(doc! {
+                "is_active": true,
+                "key_prefix": key_prefix
+            })
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    "Database query failed while looking up API key with prefix '{}': {}",
+                    key_prefix,
+                    e
+                );
+                AppError::InternalError(format!(
+                    "Failed to query project API keys: {}",
+                    e
+                ))
+            })?;
+
+        info!("Successfully queried database for keys with prefix: {}", key_prefix);
+
+        let mut keys_checked = 0;
+        while let Some(key_doc) = cursor.try_next().await.map_err(|e| {
+            tracing::error!("Failed to iterate through API key cursor: {}", e);
+            AppError::InternalError(format!("Database cursor error: {}", e))
+        })? {
+            keys_checked += 1;
+            info!("Checking key ID: {} (attempt #{})", key_doc.key_id, keys_checked);
+
+            // Check if key has expired
+            if let Some(expires_at) = key_doc.expires_at {
+                if chrono::Utc::now() > expires_at {
+                    info!("Key {} has expired, skipping", key_doc.key_id);
+                    continue; // Skip expired keys
+                }
+            }
+
+            // Decrypt stored key and compare with provided key
+            match self.encryption.decrypt(&key_doc.key_hash) {
+                Ok(decrypted_key) => {
+                    if decrypted_key == api_key {
+                        info!("API key matched! Marking as used and fetching project");
+
+                        // Mark as used
+                        if let Err(e) = self.project_api_keys
+                            .update_one(
+                                doc! { "_id": &key_doc.id },
+                                doc! { "$set": { "last_used_at": chrono::Utc::now() } },
+                            )
+                            .await
+                        {
+                            tracing::warn!(
+                                "Failed to update last_used_at for key {}: {}",
+                                key_doc.key_id,
+                                e
+                            );
+                            // Don't fail the request, just log the warning
+                        }
+
+                        // Find associated project
+                        return self.find_by_id(&key_doc.project_id).await;
+                    } else {
+                        info!("Decrypted key does not match provided key");
+                    }
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "Failed to decrypt API key {} (hash length: {}): {}",
+                        key_doc.key_id,
+                        key_doc.key_hash.len(),
+                        e
+                    );
+                    // Continue checking other keys instead of failing
+                    continue;
+                }
             }
         }
 
+        info!("No matching API key found after checking {} candidates", keys_checked);
         Err(AppError::AuthenticationError("Invalid API key".to_string()))
     }
 
     async fn find_by_api_key_id(&self, key_id: &str) -> Result<Project, AppError> {
-        let api_keys_collection = self.db.collection::<ProjectApiKey>("project_api_keys");
+        info!("Looking up project by API key ID: {}", key_id);
 
-        let key_doc = api_keys_collection
+        let key_doc = self.project_api_keys
             .find_one(doc! { "key_id": key_id, "is_active": true })
-            .await?
-            .ok_or_else(|| AppError::NotFound("API key not found".to_string()))?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error while looking up API key ID {}: {}", key_id, e);
+                AppError::InternalError(format!("Failed to query API key: {}", e))
+            })?
+            .ok_or_else(|| {
+                info!("API key ID {} not found or inactive", key_id);
+                AppError::NotFound("API key not found".to_string())
+            })?;
 
+        info!("Found API key {}, fetching project {}", key_id, key_doc.project_id);
         self.find_by_id(&key_doc.project_id).await
     }
 
     async fn find_by_id(&self, project_id: &str) -> Result<Project, AppError> {
-        let projects_collection = self.db.collection::<Project>("projects");
+        info!("Looking up project by ID: {}", project_id);
 
-        projects_collection
+        self.projects
             .find_one(doc! { "project_id": project_id })
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Project {} not found", project_id)))
+            .await
+            .map_err(|e| {
+                tracing::error!("Database error while looking up project {}: {}", project_id, e);
+                AppError::InternalError(format!("Failed to query project: {}", e))
+            })?
+            .ok_or_else(|| {
+                info!("Project {} not found in database", project_id);
+                AppError::NotFound(format!("Project {} not found", project_id))
+            })
     }
 
     async fn create(&self, project: &Project) -> Result<Project, AppError> {
-        let projects_collection = self.db.collection::<Project>("projects");
+        info!("Creating new project: {}", project.project_id);
 
-        projects_collection.insert_one(project).await?;
+        self.projects
+            .insert_one(project)
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to create project {}: {}", project.project_id, e);
+                AppError::InternalError(format!("Failed to create project: {}", e))
+            })?;
+
+        info!("Successfully created project: {}", project.project_id);
         Ok(project.clone())
     }
 
     async fn update(&self, project: &Project) -> Result<(), AppError> {
-        let projects_collection = self.db.collection::<Project>("projects");
+        info!("Updating project: {}", project.project_id);
 
-        projects_collection
+        let doc = bson::to_document(project).map_err(|e| {
+            tracing::error!("Failed to serialize project {} to BSON: {}", project.project_id, e);
+            AppError::InternalError(format!("Failed to serialize project: {}", e))
+        })?;
+
+        let result = self.projects
             .update_one(
                 doc! { "project_id": &project.project_id },
-                doc! { "$set": bson::to_document(project)? },
+                doc! { "$set": doc },
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to update project {}: {}", project.project_id, e);
+                AppError::InternalError(format!("Failed to update project: {}", e))
+            })?;
 
+        if result.matched_count == 0 {
+            tracing::warn!("Project {} not found during update", project.project_id);
+            return Err(AppError::NotFound(format!(
+                "Project {} not found",
+                project.project_id
+            )));
+        }
+
+        info!("Successfully updated project: {}", project.project_id);
         Ok(())
     }
 
     async fn delete(&self, project_id: &str) -> Result<(), AppError> {
-        let projects_collection = self.db.collection::<Project>("projects");
+        info!("Soft-deleting project: {}", project_id);
 
-        projects_collection
+        let result = self.projects
             .update_one(
                 doc! { "project_id": project_id },
                 doc! { "$set": { "status": "inactive" } },
             )
-            .await?;
+            .await
+            .map_err(|e| {
+                tracing::error!("Failed to delete project {}: {}", project_id, e);
+                AppError::InternalError(format!("Failed to delete project: {}", e))
+            })?;
 
+        if result.matched_count == 0 {
+            tracing::warn!("Project {} not found during deletion", project_id);
+            return Err(AppError::NotFound(format!(
+                "Project {} not found",
+                project_id
+            )));
+        }
+
+        info!("Successfully deleted project: {}", project_id);
         Ok(())
     }
 }

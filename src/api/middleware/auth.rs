@@ -8,6 +8,8 @@ use std::sync::Arc;
 use crate::domain::entities::project::Project;
 use crate::domain::repositories::project_repository::ProjectRepository;
 use crate::shared::error::AppError;
+use crate::AppState;
+use tracing::info;
 
 /// Authentication middleware for Project API keys
 pub async fn authenticate(
@@ -36,6 +38,8 @@ pub async fn authenticate(
         ));
     }
 
+    info!("Authenticating request with API key: {}", api_key);
+
     // Validate API key format (should start with pk_)
     if !api_key.starts_with("pk_") {
         return Err(AppError::AuthenticationError(
@@ -43,9 +47,12 @@ pub async fn authenticate(
         ));
     }
 
+    info!("API key format valid, checking database...");
+
     // Fetch project from database
     let project = repo.find_by_api_key(api_key).await?;
 
+    info!("API key valid, checking project status...");
     // Check if project is active
     if !project.is_active() {
         return Err(AppError::AuthorizationError(

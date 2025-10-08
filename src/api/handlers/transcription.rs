@@ -7,6 +7,7 @@ use crate::domain::entities::project::Project;
 use crate::domain::entities::transcription::TranscriptionRequest;
 use crate::shared::error::AppError;
 use crate::AppState;
+use tracing::info;
 
 /// Audio transcription handler
 #[utoipa::path(
@@ -42,10 +43,15 @@ pub async fn transcribe_audio(
         llm_api_key_id: None,
     };
 
+    info!("Processing transcription request for project: {}", project.project_id);
+
     // Parse multipart form data
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         AppError::BadRequest(format!("Failed to read multipart field: {}", e))
     })? {
+
+        info!("Processing field: {:?}", field.name());
+
         let field_name = field
             .name()
             .ok_or_else(|| AppError::BadRequest("Missing field name".to_string()))?
@@ -98,11 +104,14 @@ pub async fn transcribe_audio(
         }
     }
 
+    info!("Received file: {} ({} bytes)", file_name, file_data.len());
+
     // Validate file data
     if file_data.is_empty() {
         return Err(AppError::BadRequest("No file provided".to_string()));
     }
 
+    info!("File data size: {} bytes", file_data.len());
     // Check file size against project limits
     let file_size_mb = file_data.len() as f32 / (1024.0 * 1024.0);
     if file_size_mb > project.rate_limits.max_file_size_mb as f32 {
@@ -112,9 +121,12 @@ pub async fn transcribe_audio(
         )));
     }
 
+    info!("File size within project limits: {:.2}MB", file_size_mb);
+
     // Parse timestamp granularities before moving request_dto
     let timestamp_granularities = request_dto.parse_timestamp_granularities();
 
+    info!("Parsed timestamp granularities: {:?}", timestamp_granularities);
     // Create transcription request
     let transcription_request = TranscriptionRequest {
         file_data,
@@ -128,10 +140,13 @@ pub async fn transcribe_audio(
         llm_api_key_id: request_dto.llm_api_key_id,
     };
 
+    info!("Transcription request created: {:?}", transcription_request);
+
     // Perform transcription
     let response = state.transcription_service
         .transcribe(project.project_id, transcription_request)
         .await?;
 
+    info!("Transcription completed successfully");
     Ok(Json(TranscribeResponseDto::from(response)))
 }
