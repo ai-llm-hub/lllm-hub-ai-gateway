@@ -144,3 +144,9 @@ impl From<bson::de::Error> for AppError {
         AppError::DatabaseError(err.to_string())
     }
 }
+
+impl From<bson::document::ValueAccessError> for AppError {
+    fn from(err: bson::document::ValueAccessError) -> Self {
+        AppError::DatabaseError(err.to_string())
+    }
+}

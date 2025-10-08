@@ -1,18 +1,12 @@
 pub mod audio;
 pub mod health;
 
-use axum::{middleware, Router};
-use std::sync::Arc;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 use crate::api::dto::{
-    HealthResponse, ResponseFormatDto, TimestampGranularityDto, TranscribeRequestDto,
+    HealthResponse, ResponseFormatDto, TimestampGranularityDto,
     TranscribeResponseDto, TranscriptionSegmentDto, TranscriptionUsageDto, TranscriptionWordDto,
 };
-use crate::api::middleware::{authenticate, cors_layer};
-use crate::domain::repositories::project_repository::ProjectRepository;
-use crate::domain::services::transcription::TranscriptionService;
 
 pub use audio::audio_router;
 pub use health::health_router;
@@ -27,7 +21,6 @@ pub use health::health_router;
     components(
         schemas(
             HealthResponse,
-            TranscribeRequestDto,
             TranscribeResponseDto,
             ResponseFormatDto,
             TimestampGranularityDto,
@@ -59,28 +52,3 @@ pub use health::health_router;
 )]
 pub struct ApiDoc;
 
-/// Create application router with all routes and middleware
-pub fn create_app(
-    project_repo: Arc<dyn ProjectRepository>,
-    transcription_service: Arc<TranscriptionService>,
-) -> Router {
-    // Health routes (no authentication)
-    let health_routes = health_router();
-
-    // Audio routes (requires authentication)
-    let audio_routes = audio_router(transcription_service)
-        .route_layer(middleware::from_fn_with_state(
-            project_repo.clone(),
-            authenticate,
-        ));
-
-    // Swagger UI
-    let swagger = SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi());
-
-    // Combine all routes
-    Router::new()
-        .merge(health_routes)
-        .merge(audio_routes)
-        .merge(swagger)
-        .layer(cors_layer())
-}

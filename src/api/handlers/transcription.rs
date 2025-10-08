@@ -5,15 +5,15 @@ use std::sync::Arc;
 use crate::api::dto::{TranscribeRequestDto, TranscribeResponseDto};
 use crate::domain::entities::project::Project;
 use crate::domain::entities::transcription::TranscriptionRequest;
-use crate::domain::services::transcription::TranscriptionService;
 use crate::shared::error::AppError;
+use crate::AppState;
 
 /// Audio transcription handler
 #[utoipa::path(
     post,
     path = "/v1/audio/transcribe",
     tag = "Audio",
-    request_body(content = TranscribeRequestDto, content_type = "multipart/form-data"),
+    request_body(content = TranscribeResponseDto, content_type = "multipart/form-data"),
     responses(
         (status = 200, description = "Transcription successful", body = TranscribeResponseDto),
         (status = 400, description = "Bad request"),
@@ -26,7 +26,7 @@ use crate::shared::error::AppError;
     )
 )]
 pub async fn transcribe_audio(
-    State(service): State<Arc<TranscriptionService>>,
+    State(state): State<Arc<AppState>>,
     Extension(project): Extension<Project>,
     mut multipart: Multipart,
 ) -> Result<Json<TranscribeResponseDto>, AppError> {
@@ -129,7 +129,7 @@ pub async fn transcribe_audio(
     };
 
     // Perform transcription
-    let response = service
+    let response = state.transcription_service
         .transcribe(project.project_id, transcription_request)
         .await?;
 

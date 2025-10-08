@@ -7,27 +7,14 @@ use crate::domain::entities::transcription::{
 };
 
 /// Audio transcription request DTO
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize)]
 pub struct TranscribeRequestDto {
-    #[schema(description = "Audio model to use", example = "whisper-1")]
     pub model: Option<String>,
-
-    #[schema(description = "ISO 639-1 language code", example = "en")]
     pub language: Option<String>,
-
-    #[schema(description = "Optional prompt to guide transcription")]
     pub prompt: Option<String>,
-
-    #[schema(description = "Response format", example = "json")]
     pub response_format: Option<ResponseFormatDto>,
-
-    #[schema(description = "Sampling temperature", example = 0.0)]
     pub temperature: Option<f32>,
-
-    #[schema(description = "Timestamp granularities (comma-separated)", example = "word,segment")]
     pub timestamp_granularities: Option<String>,
-
-    #[schema(description = "Optional custom LLM API key ID")]
     pub llm_api_key_id: Option<String>,
 }
 

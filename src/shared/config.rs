@@ -56,7 +56,7 @@ impl Config {
             // Start with default values
             .set_default("server.host", "0.0.0.0")?
             .set_default("server.port", 3001)?
-            .set_default("server.environment", &environment)?
+            .set_default("server.environment", environment.as_str())?
             .set_default("database.mongodb.url", "mongodb://localhost:27017")?
             .set_default("database.mongodb.database", "llm_hub_dev")?
             // Load configuration from TOML file
