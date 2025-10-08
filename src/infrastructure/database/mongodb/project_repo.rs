@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use bson::oid::ObjectId;
 use futures::TryStreamExt;
 use mongodb::{bson::doc, Collection, Database};
 
@@ -147,8 +148,12 @@ impl ProjectRepository for MongoProjectRepository {
     async fn find_by_id(&self, project_id: &str) -> Result<Project, AppError> {
         info!("Looking up project by ID: {}", project_id);
 
+        // Parse project_id as ObjectId for querying the _id field
+        let object_id = ObjectId::parse_str(project_id)
+            .map_err(|e| AppError::BadRequest(format!("Invalid project ID format: {}", e)))?;
+
         self.projects
-            .find_one(doc! { "project_id": project_id })
+            .find_one(doc! { "_id": object_id })
             .await
             .map_err(|e| {
                 tracing::error!("Database error while looking up project {}: {}", project_id, e);
