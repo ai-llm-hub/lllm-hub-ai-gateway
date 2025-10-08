@@ -4,7 +4,7 @@ pub mod health;
 use utoipa::OpenApi;
 
 use crate::api::dto::{
-    HealthResponse, ResponseFormatDto, TimestampGranularityDto,
+    DetailedHealthResponse, HealthResponse, ResponseFormatDto, TimestampGranularityDto,
     TranscribeResponseDto, TranscriptionSegmentDto, TranscriptionUsageDto, TranscriptionWordDto,
 };
 
@@ -12,15 +12,17 @@ pub use audio::audio_router;
 pub use health::health_router;
 
 /// OpenAPI documentation
-#[derive(OpenApi)]
+#[derive(utoipa::OpenApi)]
 #[openapi(
     paths(
         crate::api::handlers::health::health_check,
+        crate::api::handlers::health::detailed_health_check,
         crate::api::handlers::transcription::transcribe_audio,
     ),
     components(
         schemas(
             HealthResponse,
+            DetailedHealthResponse,
             TranscribeResponseDto,
             ResponseFormatDto,
             TimestampGranularityDto,
@@ -34,9 +36,9 @@ pub use health::health_router;
         (name = "Audio", description = "Audio transcription endpoints")
     ),
     info(
-        title = "AI Gateway API",
+        title = "AI Gateway - LLM Hub Data Plane",
         version = "0.1.0",
-        description = "LLM Hub Data Plane - Unified LLM API Gateway",
+        description = "High-performance unified LLM API gateway",
         contact(
             name = "LLM Hub Team",
             email = "support@example.com"

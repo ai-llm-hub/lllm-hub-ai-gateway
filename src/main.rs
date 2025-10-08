@@ -3,20 +3,12 @@ mod domain;
 mod infrastructure;
 mod shared;
 
-use axum::{
-    extract::{DefaultBodyLimit, State},
-    http::StatusCode,
-    response::Json,
-    routing::get,
-    Router,
-};
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use axum::{extract::DefaultBodyLimit, http::StatusCode, Router};
 use std::{sync::Arc, time::Instant};
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use utoipa::{OpenApi, ToSchema};
+use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use domain::services::{LlmApiKeyService, TranscriptionService};
@@ -38,86 +30,6 @@ pub struct AppState {
     pub usage_repo: Arc<dyn domain::repositories::UsageRepository>,
     pub llm_key_service: Arc<LlmApiKeyService>,
     pub transcription_service: Arc<TranscriptionService>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-struct HealthResponse {
-    status: String,
-    timestamp: DateTime<Utc>,
-}
-
-#[derive(Serialize, Deserialize, ToSchema)]
-struct DetailedHealthResponse {
-    status: String,
-    timestamp: DateTime<Utc>,
-    version: String,
-    service: String,
-    uptime_seconds: u64,
-    environment: String,
-}
-
-#[derive(OpenApi)]
-#[openapi(
-    paths(health_check, detailed_health_check),
-    components(schemas(HealthResponse, DetailedHealthResponse)),
-    tags(
-        (name = "health", description = "Health check endpoints")
-    ),
-    info(
-        title = "AI Gateway - LLM Hub Data Plane",
-        version = "0.1.0",
-        description = "High-performance unified LLM API gateway",
-        contact(
-            name = "LLM Hub Team",
-            email = "support@example.com"
-        ),
-        license(
-            name = "MIT"
-        )
-    ),
-    servers(
-        (url = "http://localhost:3001", description = "Local development server"),
-        (url = "https://gateway.example.com", description = "Production server")
-    )
-)]
-struct ApiDoc;
-
-#[utoipa::path(
-    get,
-    path = "/health",
-    tag = "health",
-    responses(
-        (status = 200, description = "Service is healthy", body = HealthResponse),
-        (status = 503, description = "Service is unavailable")
-    )
-)]
-async fn health_check() -> Json<HealthResponse> {
-    Json(HealthResponse {
-        status: "healthy".to_string(),
-        timestamp: Utc::now(),
-    })
-}
-
-#[utoipa::path(
-    get,
-    path = "/health/detailed",
-    tag = "health",
-    responses(
-        (status = 200, description = "Detailed health information", body = DetailedHealthResponse),
-        (status = 503, description = "Service is unavailable")
-    )
-)]
-async fn detailed_health_check(State(state): State<Arc<AppState>>) -> Json<DetailedHealthResponse> {
-    let uptime = state.start_time.elapsed().as_secs();
-
-    Json(DetailedHealthResponse {
-        status: "healthy".to_string(),
-        timestamp: Utc::now(),
-        version: state.version.clone(),
-        service: "ai-gateway".to_string(),
-        uptime_seconds: uptime,
-        environment: state.config.server.environment.clone(),
-    })
 }
 
 fn create_trace_layer(
@@ -240,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Create routers
+    let health_routes = api::routers::health_router();
     let audio_routes = api::routers::audio_router()
         .route_layer(axum::middleware::from_fn_with_state(
             state.project_repo.clone(),
@@ -249,8 +162,7 @@ async fn main() -> anyhow::Result<()> {
     // Build our application with routes
     let app = Router::new()
         // Health check endpoints (no authentication)
-        .route("/health", get(health_check))
-        .route("/health/detailed", get(detailed_health_check))
+        .merge(health_routes)
         // API v1 routes
         .nest("/v1/audio", audio_routes)
         // Add state
@@ -293,13 +205,13 @@ async fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{body::Body, http::Request};
+    use axum::{body::Body, http::Request, routing::get};
     use tower::util::ServiceExt;
 
     #[tokio::test]
     async fn test_health_check() {
         let app = Router::new()
-            .route("/health", get(health_check));
+            .route("/health", get(api::handlers::health::health_check));
 
         let response = app
             .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())

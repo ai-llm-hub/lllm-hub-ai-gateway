@@ -1,17 +1,8 @@
 pub mod audio;
-
-use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+pub mod health;
 
 pub use audio::{
     ResponseFormatDto, TimestampGranularityDto, TranscribeRequestDto, TranscribeResponseDto,
     TranscriptionSegmentDto, TranscriptionUsageDto, TranscriptionWordDto,
 };
-
-/// Health check response
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
-pub struct HealthResponse {
-    pub status: String,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
-    pub version: String,
-}
+pub use health::{DetailedHealthResponse, HealthResponse};
