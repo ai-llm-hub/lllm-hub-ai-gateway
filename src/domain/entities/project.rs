@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
-    pub id: Option<bson::oid::ObjectId>,
-    #[serde(with = "crate::shared::utils::string_or_objectid")]
-    pub project_id: String,  // Deserializes ObjectId from MongoDB to String
+    pub id: Option<ObjectId>,
     pub name: String,
     pub organization_id: String,
     pub status: ProjectStatus,

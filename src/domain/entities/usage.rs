@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::shared_types::LlmProvider;
+use super::LlmProvider;
 
 /// Usage log entity for tracking API usage and costs
 #[derive(Debug, Clone, Serialize, Deserialize)]

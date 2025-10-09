@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use super::shared_types::LlmProvider;
+use super::LlmProvider;
 
 /// Transcription request entity
 #[derive(Debug, Clone, Serialize, Deserialize)]

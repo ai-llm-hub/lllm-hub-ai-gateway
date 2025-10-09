@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::domain::entities::project::Project;
+use crate::domain::entities::Project;
 use crate::shared::error::AppError;
 
 /// Repository trait for project data access

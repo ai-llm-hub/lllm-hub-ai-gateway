@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use futures::TryStreamExt;
 use mongodb::{bson::doc, Database};
 
-use crate::domain::entities::llm_api_key::LlmApiKey;
+use crate::domain::entities::LlmApiKey;
 use crate::domain::entities::LlmProvider;
 use crate::domain::repositories::llm_api_key_repository::LlmApiKeyRepository;
 use crate::shared::error::AppError;

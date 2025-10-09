@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::domain::entities::llm_api_key::LlmApiKey;
+use crate::domain::entities::LlmApiKey;
 use crate::domain::entities::LlmProvider;
 use crate::shared::error::AppError;
 

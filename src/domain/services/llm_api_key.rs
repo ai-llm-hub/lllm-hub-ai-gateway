@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::domain::entities::llm_api_key::LlmApiKey;
+use crate::domain::entities::LlmApiKey;
 use crate::domain::entities::LlmProvider;
 use crate::domain::repositories::llm_api_key_repository::LlmApiKeyRepository;
 use crate::shared::error::AppError;
@@ -80,7 +80,23 @@ impl LlmApiKeyService {
         // Encrypt the API key
         let encrypted = self.encryption.encrypt(&api_key)?;
 
-        let llm_key = LlmApiKey::new(project_id, provider, name, encrypted);
+        // Extract key prefix (first 8 characters)
+        let key_prefix = if api_key.len() >= 8 {
+            api_key[..8].to_string()
+        } else {
+            api_key.clone()
+        };
+
+        // For AI gateway, organization_id is not tracked at this level
+        // and created_by is handled by the gateway itself
+        let llm_key = LlmApiKey::new(
+            String::new(),           // organization_id - not used in AI gateway
+            provider,
+            name,
+            encrypted,
+            key_prefix,
+            String::from("system"),  // created_by - placeholder for AI gateway
+        );
 
         self.repository.create(&llm_key).await
     }
