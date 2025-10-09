@@ -162,6 +162,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Create routers
     let health_routes = api::routers::health_router();
+    let chat_routes = api::routers::chat_router()
+        .route_layer(axum::middleware::from_fn_with_state(
+            state.project_repo.clone(),
+            api::middleware::authenticate,
+        ));
     let audio_routes = api::routers::audio_router()
         .route_layer(axum::middleware::from_fn_with_state(
             state.project_repo.clone(),
@@ -173,6 +178,7 @@ async fn main() -> anyhow::Result<()> {
         // Health check endpoints (no authentication)
         .merge(health_routes)
         // API v1 routes
+        .nest("/v1/chat", chat_routes)
         .nest("/v1/audio", audio_routes)
         // Add state
         .with_state(state.clone());

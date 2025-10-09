@@ -43,7 +43,7 @@ impl TranscriptionService {
         let file_hash = self.calculate_file_hash(&request.file_data);
 
         // Determine provider (default to OpenAI for now)
-        let provider = LlmProvider::OpenAI;
+        let provider = LlmProvider::Openai;
 
         // Get LLM API key
         let api_key = if let Some(key_id) = &request.llm_api_key_id {
@@ -124,7 +124,7 @@ impl TranscriptionService {
 
         let history = TranscriptionHistory::new(
             project_id,
-            LlmProvider::OpenAI,
+            LlmProvider::Openai,
             file_hash.to_string(),
             request.file_name.clone(),
             request.file_data.len(),

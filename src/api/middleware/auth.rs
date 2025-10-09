@@ -8,7 +8,6 @@ use std::sync::Arc;
 use crate::domain::entities::Project;
 use crate::domain::repositories::project_repository::ProjectRepository;
 use crate::shared::error::AppError;
-use crate::AppState;
 
 /// Authentication middleware for Project API keys
 pub async fn authenticate(
@@ -61,6 +60,7 @@ pub async fn authenticate(
 }
 
 /// Extract project from request extensions
+#[allow(dead_code)]
 pub fn extract_project(req: &Request) -> Result<&Project, AppError> {
     req.extensions()
         .get::<Project>()

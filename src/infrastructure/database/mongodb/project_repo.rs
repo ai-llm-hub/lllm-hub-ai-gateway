@@ -55,12 +55,12 @@ impl ProjectRepository for MongoProjectRepository {
                 ))
             })?;
 
-        let mut keys_checked = 0;
+        let mut _keys_checked = 0;
         while let Some(key_doc) = cursor.try_next().await.map_err(|e| {
             tracing::error!("Failed to iterate through API key cursor: {}", e);
             AppError::InternalError(format!("Database cursor error: {}", e))
         })? {
-            keys_checked += 1;
+            _keys_checked += 1;
             let key_id_str = key_doc.id.as_ref().map(|id| id.to_hex()).unwrap_or_else(|| "unknown".to_string());
 
             // Check if key has expired

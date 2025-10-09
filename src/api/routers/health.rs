@@ -8,5 +8,5 @@ use crate::AppState;
 pub fn health_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/health", get(health_check))
-        .route("/health/detailed", get(detailed_health_check))
+        .route("/health/ready", get(detailed_health_check))
 }

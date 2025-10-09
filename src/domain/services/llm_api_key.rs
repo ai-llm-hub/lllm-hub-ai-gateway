@@ -72,7 +72,7 @@ impl LlmApiKeyService {
     /// Create new LLM API key
     pub async fn create_key(
         &self,
-        project_id: String,
+        _project_id: String,
         provider: LlmProvider,
         name: String,
         api_key: String,

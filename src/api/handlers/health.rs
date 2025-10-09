@@ -26,7 +26,7 @@ pub async fn health_check() -> Result<Json<HealthResponse>, AppError> {
 /// Detailed health check handler
 #[utoipa::path(
     get,
-    path = "/health/detailed",
+    path = "/health/ready",
     tag = "Health",
     responses(
         (status = 200, description = "Detailed health information", body = DetailedHealthResponse),

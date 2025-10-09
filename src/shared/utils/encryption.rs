@@ -91,8 +91,10 @@ impl EncryptionService {
 }
 
 /// Hash service for API keys and passwords
+#[allow(dead_code)]
 pub struct HashService;
 
+#[allow(dead_code)]
 impl HashService {
     /// Hash an API key using bcrypt
     pub fn hash_api_key(api_key: &str) -> Result<String, AppError> {

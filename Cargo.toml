@@ -61,8 +61,6 @@ chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.10", features = ["v4", "serde"] }
 async-trait = "0.1"
 
-# Shared common crate
-llm-hub-common = { path = "../llm-hub-common" }
 regex = "1.10"
 validator = { version = "0.18", features = ["derive"] }
 
